@@ -45,3 +45,7 @@ div:has(> input.updated) {
 #message-list {
 	margin-top: 30px;
 }
+
+#message-list div {
+	border-top: 1px solid black;
+}

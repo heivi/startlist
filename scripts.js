@@ -1,3 +1,7 @@
+// TODO: add realtime updates from online?
+// TODO: competition selector?
+
+
 const urlParams = new URLSearchParams(window.location.search);
 
 // Online event id kisalle
@@ -7,7 +11,7 @@ const online_domain = "./corsproxy.php?csurl=https://online4.tulospalvelu.fi";
 let selectedCategory = "";
 let debug = false;
 let timeRes = 1;
-let raceno = urlParams.get('raceno') || 1;
+let raceno = 1;
 
 function formatTime(time, timePrecision) {
 	const seconds = Math.floor(time / timePrecision) % 60;
@@ -65,6 +69,10 @@ function loadResults() {
 		let bibcol = -1;
 		let classidcol = -1;
 		const timezone = event.Races[0].RaceTimeZoneMin;
+
+		raceno = urlParams.get('raceno') || event.Headers.CurrentRace;
+
+		$("#eventname").text(event.Headers.EventTitle + ", RaceNo " + raceno);
 
 		let classes = [];
 		event.Classes.forEach((valclass) => {
@@ -326,6 +334,10 @@ $(document).ready(function () {
 	// Function to process queued messages
 	function processMessageQueue() {
 		messageQueue.forEach(message => {
+			if (message.eventid != ol_eventid || message.raceno != raceno) {
+				console.log("Wrong race", message, raceno);
+				return;
+			}
 			updateFromMessage(message);
 		});
 		// Clear the message queue
@@ -384,14 +396,14 @@ $(document).ready(function () {
 
 	// Receiver side (when receiving the message)
 	socket.on('competitor_update', function (message) {
-		if (message.eventid != ol_eventid || message.raceno != raceno) {
-			console.log("Wrong race", message);
-			return;
-		}
 		console.log("Received competitor update message:", message);
 
 		// Check if competitors are already loaded
 		if ($('#competitors-list .competitor-row').length > 0) {
+			if (message.eventid != ol_eventid || message.raceno != raceno) {
+				console.log("Wrong race", message, raceno);
+				return;
+			}
 			// Process the message immediately
 			updateFromMessage(message);
 		} else {
