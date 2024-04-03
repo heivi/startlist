@@ -11,7 +11,7 @@ const app = express();
 // Use CORS middleware to allow all origins
 app.use(cors({
 	origin: '*'
-  }));
+}));
 
 // Create a Node.js HTTP server using the Express app
 const server = http.createServer(app);
@@ -42,7 +42,7 @@ io.on('connection', socket => {
 		// Then broadcast the updated data to other clients
 		socket.broadcast.emit('competitor_update', message);
 
-		fs.appendFile('startlog.txt', JSON.stringify(message)+"\r\n", function (err) {
+		fs.appendFile('startlog.txt', JSON.stringify([Date.now(), message]) + "\r\n", function (err) {
 			console.log('Saved!');
 		});
 	});
@@ -59,5 +59,5 @@ app.options('*', cors());
 // Start the server and listen on a specified port
 const PORT = process.env.PORT || 3077;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+	console.log(`Server running on port ${PORT}`);
 });

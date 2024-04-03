@@ -41,3 +41,7 @@ hr {
 div:has(> input.updated) { 
 	background-color: #bffc93;
 }
+
+#message-list {
+	margin-top: 30px;
+}

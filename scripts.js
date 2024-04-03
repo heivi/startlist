@@ -1,11 +1,13 @@
+const urlParams = new URLSearchParams(window.location.search);
+
 // Online event id kisalle
-const ol_eventid = "2024_aland";
+const ol_eventid = urlParams.get('eventid') || "2024_aland";
 const online_domain = "./corsproxy.php?csurl=https://online4.tulospalvelu.fi";
 
 let selectedCategory = "";
 let debug = false;
 let timeRes = 1;
-let raceno = 2;
+let raceno = urlParams.get('raceno') || 1;
 
 function formatTime(time, timePrecision) {
 	const seconds = Math.floor(time / timePrecision) % 60;
@@ -54,7 +56,7 @@ function loadResults() {
 
 		const allowfollowall = event.Headers.AllowFollowAll;
 		timeRes = event.Headers.TimePrecision;
-		const eventtype = event.Headers.EventType; // Individual or Relay
+		const eventtype = event.Headers.EventType; // Individual, MultiRace or Relay
 		let starttimecol = -1;
 		let starttimetablecol = -1;
 		let resultscol = -1;
@@ -66,7 +68,16 @@ function loadResults() {
 
 		let classes = [];
 		event.Classes.forEach((valclass) => {
-			classes.push([valclass.ID, valclass.ClassNameShort]);
+			let found = false;
+			valclass.Races.forEach((race) => {
+				if (race.RaceNo == raceno) {
+					found = true;
+					return;
+				}
+			})
+			if (found) {
+				classes.push([valclass.ID, valclass.ClassNameShort]);
+			}
 		});
 
 		// for starttimes check right result column
@@ -93,7 +104,7 @@ function loadResults() {
 			if (event.JsonFileFormats[olrescol][i] == "ClassID") {
 				classidcol = i;
 			}
-			console.log(event.JsonFileFormats[olrescol][i]);
+			//console.log(event.JsonFileFormats[olrescol][i]);
 		}
 
 		let promises = [];
@@ -103,21 +114,17 @@ function loadResults() {
 		// get results
 		if (!allowfollowall) {
 			classes.forEach((valclass) => {
-				promises.push($.get(online_domain + "/tulokset-new/online/online_" + ol_eventid + "_results_" + valclass[1] + "_" + raceno + ".json&a=" + Date.now(), "", null, 'json'));
+				promises.push($.get(online_domain + "/tulokset-new/online/online_" + ol_eventid + "_results_" + valclass[0] + "_" + raceno + ".json&a=" + Date.now(), "", null, 'json'));
 			});
 		} else {
 			promises.push($.get(online_domain + "/tulokset-new/online/online_" + ol_eventid + "_results.json&a=" + Date.now(), "", null, 'json'));
 		}
 
-		return $.when(...promises).then((allresults, resultsres) => {
+		return $.when(...promises).then((allresults, ...resultsres) => {
 
-			console.log(allresults, resultsres);
+			//console.log(allresults, resultsres);
 			let competitors = allresults[0].Competitors;
-			console.log(competitors);
-
-			let results1 = resultsres[0];
-
-			console.log(results1);
+			//console.log(competitors);
 
 			let ol_competitor_ids = [];
 			let ol_competitors = [];
@@ -131,38 +138,47 @@ function loadResults() {
 			let classes = [];
 			let classids = [];
 
-			if (allowfollowall) {
-				let results = results1;
-				// loop to find right class
-				for (let i in results.Results) {
-					if ((results.Results[i].RaceNo == raceno)) {
-						let classresults = results.Results[i].Results;
-						// go through results to see who's in the class
-						for (let i in classresults) {
+			resultsres.forEach((classresults) => {
+				// Go through each class results
+				if (allowfollowall) {
+					let results = classresults[0];
+					// loop to find right class
+					for (let i in results.Results) {
+						if ((results.Results[i].RaceNo == raceno)) {
+							let classresults = results.Results[i].Results;
+							// go through results to see who's in the class
+							for (let i in classresults) {
 
-							let result = classresults[i];
-							ol_competitor_ids.push(result[0]);
-							starttimes[result[0]] = result[starttimecol];
-							//resulttimes[result[0]] = result[resultscol][0][1];
-							statuses[result[0]] = result[statuscol];
-							emitnums[result[0]] = result[emitnumcol];
-							bibs[result[0]] = result[bibcol];
-							classes[result[0]] = event.Classes[result[classidcol]].ClassNameShort;
-							classids[result[0]] = result[classidcol];
+								let result = classresults[i];
+								ol_competitor_ids.push(result[0]);
+								starttimes[result[0]] = result[starttimecol];
+								//resulttimes[result[0]] = result[resultscol][0][1];
+								statuses[result[0]] = result[statuscol];
+								emitnums[result[0]] = result[emitnumcol];
+								bibs[result[0]] = result[bibcol];
+								classes[result[0]] = event.Classes[result[classidcol]].ClassNameShort;
+								classids[result[0]] = result[classidcol];
+							}
+							//break;
 						}
-						//break;
+					}
+				} else {
+					// go through results to see who's in the class
+					for (let i in classresults[0].Results) {
+						let result = classresults[0].Results[i];
+						ol_competitor_ids.push(result[0]);
+						starttimes[result[0]] = result[starttimecol];
+						//resulttimes[result[0]] = result[resultscol][0][1];
+						statuses[result[0]] = result[statuscol];
+						emitnums[result[0]] = result[emitnumcol];
+						bibs[result[0]] = result[bibcol];
+						classes[result[0]] = event.Classes[result[classidcol]].ClassNameShort;
+						classids[result[0]] = result[classidcol];
 					}
 				}
-			} else {
-				// go through results to see who's in the class
-				for (let i in results1.Results) {
-					let result = results1.Results[i];
-					ol_competitor_ids.push(result[0]);
-					starttimes[result[0]] = result[starttimecol];
-					//resulttimes[result[0]] = result[resultscol][0][1];
-					statuses[result[0]] = result[statuscol];
-				}
-			}
+			});
+
+
 
 			if (eventtype == "Individual" || eventtype == "MultiRace") {
 				// loop through all competitors to match ids
@@ -223,7 +239,7 @@ $(document).ready(function () {
                 </div>
             `;
 			if (laststarttime != competitor.starttime) {
-				competitorsList.append('<hr data-time="'+laststarttime+'"/>');
+				competitorsList.append('<hr data-time="' + laststarttime + '"/>');
 			}
 			competitorsList.append(row);
 
@@ -237,7 +253,7 @@ $(document).ready(function () {
 		function findNearestHrTime(currentTimeInSeconds) {
 			const hrs = $('hr[data-time]');
 			let nearestTime = parseInt(hrs.first().attr('data-time'));
-			hrs.each(function() {
+			hrs.each(function () {
 				const time = parseInt($(this).attr('data-time'));
 				if (Math.abs(time - currentTimeInSeconds) < Math.abs(nearestTime - currentTimeInSeconds)) {
 					nearestTime = time;
@@ -263,27 +279,54 @@ $(document).ready(function () {
 
 	}
 
+
+	function updateFromMessage(message) {
+		const competitorRow = $(`.competitor-row[data-id="${message.id}"]`);
+		if (competitorRow.length > 0) {
+
+			// Update only the modified fields
+			message.modifiedFields?.forEach(field => {
+				if (field == "started") {
+					console.log(competitorRow.find(`.${field}`).is(":checked"));
+					competitorRow.find(`.${field}`).prop('checked', message[field]);
+					competitorRow.find(`.${field}`).addClass("updated");
+				} else {
+					console.log(competitorRow.find(`.${field}`).val(), message[field]);
+					competitorRow.find(`.${field}`).val(message[field]).addClass('updated');
+				}
+			});
+
+		}
+
+		addToMessageList(message);
+	}
+
+	function addToMessageList(message) {
+		if (message.modifiedFields.length == 1 && message.modifiedFields[0] == "started") return;
+
+		// Add a row for the modification to messagelist
+		const modificationRow = $("<div>").addClass("modification-row");
+
+		const modificationTime = new Date(message.modifiedTime).toLocaleString(); // Get current time
+
+		// Construct modification message with modified fields and their values
+		let modificationMessage = `${modificationTime}, Modified: `;
+		message.modifiedFields.forEach(field => {
+			modificationMessage += `${field}: ${message[field]}, `;
+		});
+		modificationMessage += `Bib: ${message.bib}, Name: ${message.name}`;
+
+		// Append the message to the modification row
+		modificationRow.text(modificationMessage);
+
+		// Append the modification row to the messagelist
+		$("#message-list").append(modificationRow);
+	}
+
 	// Function to process queued messages
 	function processMessageQueue() {
 		messageQueue.forEach(message => {
-			const competitorRow = $(`.competitor-row[data-id="${message.id}"]`);
-			if (competitorRow.length > 0) {
-				// Process the message immediately
-				const competitorRow = $(`.competitor-row[data-id="${message.id}"]`);
-				if (competitorRow.length > 0) {
-					// Update only the modified fields
-					message.modifiedFields?.forEach(field => {
-						if (field == "started") {
-							console.log(competitorRow.find(`.${field}`).is(":checked"));
-							competitorRow.find(`.${field}`).prop('checked', message[field]);
-							competitorRow.find(`.${field}`).addClass("updated");
-						} else {
-							console.log(competitorRow.find(`.${field}`).val(), message[field]);
-							competitorRow.find(`.${field}`).val(message[field]).addClass('updated');
-						}
-					});
-				}
-			}
+			updateFromMessage(message);
 		});
 		// Clear the message queue
 		messageQueue.length = 0;
@@ -311,21 +354,25 @@ $(document).ready(function () {
 					modifiedFields.push('startTime');
 					row.find('.startTime').addClass("updated");
 				}
-				if (true) {
+				if ($(this).hasClass("started")) {
 					modifiedFields.push('started');
 					row.find('.started').addClass("updated");
 				}
 				const message = {
+					eventid: ol_eventid,
+					raceno: raceno,
 					emitNumber: emitNumber,
 					startTime: startTime,
 					started: started,
 					bib: row.data("bib"),
 					id: row.data("id"),
 					name: row.data("name"),
-					modifiedFields: modifiedFields // Add modified fields to the message
+					modifiedFields: modifiedFields, // Add modified fields to the message,
+					modifiedTime: new Date().getTime(),
 				};
 				console.log(message);
 				socket.emit('competitor_update', message);
+				addToMessageList(message);
 			});
 		}).fail(function (e) {
 			console.error("Failed to load competitors data", e);
@@ -336,30 +383,21 @@ $(document).ready(function () {
 	fetchAndDisplayCompetitors();
 
 	// Receiver side (when receiving the message)
-socket.on('competitor_update', function (message) {
-    console.log("Received competitor update message:", message);
-    
-    // Check if competitors are already loaded
-    if ($('#competitors-list .competitor-row').length > 0) {
-        // Process the message immediately
-        const competitorRow = $(`.competitor-row[data-id="${message.id}"]`);
-        if (competitorRow.length > 0) {
-            // Update only the modified fields
-            message.modifiedFields?.forEach(field => {
-                if (field == "started") {
-					console.log(competitorRow.find(`.${field}`).is(":checked"), message[field]);
-					competitorRow.find(`.${field}`).prop('checked', message[field]);
-					competitorRow.find(`.${field}`).addClass("updated");
-				} else {
-					console.log(competitorRow.find(`.${field}`).val(), message[field]);
-					competitorRow.find(`.${field}`).val(message[field]).addClass('updated');
-				}
-            });
-        }
-    } else {
-        // Queue the message
-        messageQueue.push(message);
-    }
-});
+	socket.on('competitor_update', function (message) {
+		if (message.eventid != ol_eventid || message.raceno != raceno) {
+			console.log("Wrong race", message);
+			return;
+		}
+		console.log("Received competitor update message:", message);
+
+		// Check if competitors are already loaded
+		if ($('#competitors-list .competitor-row').length > 0) {
+			// Process the message immediately
+			updateFromMessage(message);
+		} else {
+			// Queue the message
+			messageQueue.push(message);
+		}
+	});
 
 });
