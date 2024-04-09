@@ -1,5 +1,6 @@
 // TODO: add realtime updates from online?
 // TODO: competition selector?
+// TODO: non-started list
 
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -77,6 +78,7 @@ function loadResults() {
 		let classes = [];
 		event.Classes.forEach((valclass) => {
 			let found = false;
+			if (parseInt(valclass.ID) > 1000) return;
 			valclass.Races.forEach((race) => {
 				if (race.RaceNo == raceno) {
 					found = true;
