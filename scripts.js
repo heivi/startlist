@@ -9,7 +9,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const ol_eventid = urlParams.get('eventid') || "2024_aland";
 const online_domain = "./corsproxy.php?csurl=https://online4.tulospalvelu.fi";
 
-let selectedCategory = "";
+let selectedClasses = (urlParams.get('classes') || "").split(",");
 let debug = false;
 let timeRes = 1;
 let raceno = 1;
@@ -75,10 +75,12 @@ function loadResults() {
 
 		$("#eventname").text(event.Headers.EventTitle + ", RaceNo " + raceno);
 
-		let classes = [];
+		let fetchClasses = [];
 		event.Classes.forEach((valclass) => {
+			//console.log(selectedClasses, selectedClasses.includes(valclass.ClassNameShort), selectedClasses.length > 0 && !selectedClasses.includes(valclass.ClassNameShort));
 			let found = false;
 			if (parseInt(valclass.ID) > 1000) return;
+			if (selectedClasses.length > 0 && selectedClasses[0] != '' && !selectedClasses.includes(valclass.ClassNameShort)) return;
 			valclass.Races.forEach((race) => {
 				if (race.RaceNo == raceno) {
 					found = true;
@@ -86,9 +88,11 @@ function loadResults() {
 				}
 			})
 			if (found) {
-				classes.push([valclass.ID, valclass.ClassNameShort]);
+				fetchClasses.push([valclass.ID, valclass.ClassNameShort]);
 			}
 		});
+
+		let selectedClassIDs = fetchClasses.map((classarr) => classarr[0]);
 
 		// for starttimes check right result column
 		let olrescol = eventtype == "Relay" ? "OLRelayCompetitorRace" : "OLIndividualCompetitorRace";
@@ -123,17 +127,17 @@ function loadResults() {
 
 		// get results
 		if (!allowfollowall) {
-			classes.forEach((valclass) => {
+			fetchClasses.forEach((valclass) => {
 				promises.push($.get(online_domain + "/tulokset-new/online/online_" + ol_eventid + "_results_" + valclass[0] + "_" + raceno + ".json&a=" + Date.now(), "", null, 'json'));
 			});
 		} else {
 			promises.push($.get(online_domain + "/tulokset-new/online/online_" + ol_eventid + "_results.json&a=" + Date.now(), "", null, 'json'));
 		}
 
-		return $.when(...promises).then((allresults, ...resultsres) => {
+		return $.when(...promises).then((competitorsres, ...resultsres) => {
 
 			//console.log(allresults, resultsres);
-			let competitors = allresults[0].Competitors;
+			let competitors = competitorsres[0].Competitors;
 			//console.log(competitors);
 
 			let ol_competitor_ids = [];
@@ -154,7 +158,8 @@ function loadResults() {
 					let results = classresults[0];
 					// loop to find right class
 					for (let i in results.Results) {
-						if ((results.Results[i].RaceNo == raceno)) {
+						//console.log(results.Results[i]);
+						if (selectedClassIDs.includes(results.Results[i].ClassID) && (results.Results[i].RaceNo == raceno)) {
 							let classresults = results.Results[i].Results;
 							// go through results to see who's in the class
 							for (let i in classresults) {
