@@ -9,6 +9,9 @@ const urlParams = new URLSearchParams(window.location.search);
 const ol_eventid = urlParams.get('eventid') || "2024_aland";
 const online_domain = "./corsproxy.php?csurl=https://online4.tulospalvelu.fi";
 
+const passwd = urlParams.get('pw') || "";
+const SHA512 = new Hashes.SHA512;
+
 let selectedClasses = (urlParams.get('classes') || "").split(",");
 let debug = false;
 let timeRes = 1;
@@ -296,6 +299,12 @@ $(document).ready(function () {
 
 
 	function updateFromMessage(message) {
+
+		if (passwd && message.pw !== SHA512.hex(passwd)) {
+			console.error("Wrong password! Ignore message", passwd, message.pw, SHA512.hex(passwd));
+			return;
+		}
+
 		const competitorRow = $(`.competitor-row[data-id="${message.id}"]`);
 		if (competitorRow.length > 0) {
 
@@ -388,6 +397,7 @@ $(document).ready(function () {
 					name: row.data("name"),
 					modifiedFields: modifiedFields, // Add modified fields to the message,
 					modifiedTime: new Date().getTime(),
+					...(passwd && {pw: SHA512.hex(passwd)}),
 				};
 				console.log(message);
 				socket.emit('competitor_update', message);

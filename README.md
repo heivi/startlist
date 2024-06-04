@@ -8,15 +8,16 @@ Different race can be selected by appending eventid -query parameter to the addr
 
 You can also show only some classes (if for example two different starts) by listing wanted classes (short name) in classes query parameter, for example "?classes=H21,D21" after the url.
 
-Full url example with parameters: https://virekunnas.fi/startlist/?eventid=2024_aland&raceno=1&classes=H21,D21
+A password can also be set for the page, so that only the pages with the same password will show the modifications/updates. The password can be set by query parameter "pw", for example "?pw=password". If no password is set, then it is ignored, and all incoming changes are shown.
 
-Currently running at https://virekunnas.fi/startlist/ without authentication.
+Full url example with parameters: https://virekunnas.fi/startlist/?eventid=2024_aland&raceno=1&classes=H21,D21&pw=organizersecret
+
+Currently running at https://virekunnas.fi/startlist/.
 
 ## TODO
 - List of non-started competitors
 - Competition selection from list
 - Realtime updates from online
-- Password protection - add pw query parameter, and add hash to socket.io-packages
 
 
 Copyright (c) 2024 Heikki Virekunnas
