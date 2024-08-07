@@ -139,12 +139,13 @@
         </head>
         <body class="vscode-body vscode-light">
             <h1 id="online-start-list-for-aaltonen-online-races">Online start list for Aaltonen Online races</h1>
-<p>This web app loads competitor information from Aaltonen online result service (<a href="https://online4.tulospalvelu.fi">https://online4.tulospalvelu.fi</a>) and shows a start list by minute. It allows to mark competitors, that have started, and to make changes to their emit number and start time. Those changes are synchronized between clients with the same page open, so result service can update the changes to their system.</p>
+<p>This web app loads competitor information from Aaltonen online result service (<a href="https://online4.tulospalvelu.fi">https://online4.tulospalvelu.fi</a>) (or Navisport (<a href="https://navisport.com/events">https://navisport.com/events</a>)) and shows a start list by minute. It allows to mark competitors, that have started, and to make changes to their emit number and start time. Those changes are synchronized between clients with the same page open, so result service can update the changes to their system.</p>
 <p>The page updates the information from the Aaltonen online only when reloading the page. The updates are sent via <a href="http://socket.io">socket.io</a> through intermediary server (server.js), which also records the sent messages in case of server reboot etc. that would wipe the history.</p>
 <p>Different race can be selected by appending eventid -query parameter to the address, like &quot;<url>?eventid=2024_aland&quot;, and the race number (usually day, or otherwise the stage) with raceno parameter. By default it is the current race in the online headers.</p>
+<p>The navisport race is selected with query parameter navisportid (for example &quot;<url>?navisportid=55d59689-d0ef-4b8c-afe9-71a92d73e363&quot;).</p>
 <p>You can also show only some classes (if for example two different starts) by listing wanted classes (short name) in classes query parameter, for example &quot;?classes=H21,D21&quot; after the url.</p>
 <p>A password can also be set for the page, so that only the pages with the same password will show the modifications/updates. The password can be set by query parameter &quot;pw&quot;, for example &quot;?pw=password&quot;. If no password is set, then it is ignored, and all incoming changes are shown.</p>
-<p>Full url example with parameters: <a href="https://virekunnas.fi/startlist/?eventid=2024_aland&amp;raceno=1&amp;classes=H21,D21&amp;pw=organizersecret">https://virekunnas.fi/startlist/?eventid=2024_aland&amp;raceno=1&amp;classes=H21,D21&amp;pw=organizersecret</a></p>
+<p>Full url example with parameters: <a href="https://virekunnas.fi/startlist/?eventid=2024_aland&amp;raceno=1&amp;classes=H21,D21&amp;pw=organizersecret&amp;navisportid=55d59689-d0ef-4b8c-afe9-71a92d73e363">https://virekunnas.fi/startlist/?eventid=2024_aland&amp;raceno=1&amp;classes=H21,D21&amp;pw=organizersecret&amp;navisportid=55d59689-d0ef-4b8c-afe9-71a92d73e363</a></p>
 <p>Currently running at <a href="https://virekunnas.fi/startlist/">https://virekunnas.fi/startlist/</a>.</p>
 <h2 id="todo">TODO</h2>
 <ul>
