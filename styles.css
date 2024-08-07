@@ -49,3 +49,7 @@ div:has(> input.updated) {
 #message-list div {
 	border-top: 1px solid black;
 }
+
+.navisport {
+	background-color: #e8feff;
+}

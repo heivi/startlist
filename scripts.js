@@ -9,6 +9,8 @@ const urlParams = new URLSearchParams(window.location.search);
 const ol_eventid = urlParams.get('eventid') || "2024_aland";
 const online_domain = "./corsproxy.php?csurl=https://online4.tulospalvelu.fi";
 
+const navisportEventId = urlParams.get('navisportid') || "" /*|| "55d59689-d0ef-4b8c-afe9-71a92d73e363"*/;
+
 const passwd = urlParams.get('pw') || "";
 const SHA512 = new Hashes.SHA512;
 
@@ -203,7 +205,8 @@ function loadResults() {
 				for (let i in competitors) {
 					if (ol_competitor_ids.includes(competitors[i][0])) {
 						//console.log("adding name: " + competitors[i][8] + " " + competitors[i][7]);
-						ol_competitor_names[competitors[i][0]] = competitors[i][8] + " " + competitors[i][7];
+						//ol_competitor_names[competitors[i][0]] = competitors[i][8] + " " + competitors[i][7];
+						ol_competitor_names[competitors[i][0]] = competitors[i][7] + " " + competitors[i][8];
 					}
 				}
 			} else {
@@ -214,18 +217,90 @@ function loadResults() {
 			let returntimes = [];
 
 			starttimes.forEach((time, id) => {
-				returntimes.push({ id: id, name: ol_competitor_names[id], starttime: time, status: statuses[id], emit: emitnums[id], bib: bibs[id], class: classes[id], classid: classids[id] });
+				returntimes.push({ id: id, name: ol_competitor_names[id], starttime: time, status: statuses[id], emit: emitnums[id], bib: bibs[id], class: classes[id], classid: classids[id], navisport: false });
 			});
 
-
 			return returntimes;
+		}).then((returntimes) => {
+			// Navisport
+			if (navisportEventId && navisportEventId != "") {
+				// Fetch from navisport
+				// https://navisport.com/trpc/eventsTrpcRouter.getEvent?batch=1&input=%7B%220%22%3A%2255d59689-d0ef-4b8c-afe9-71a92d73e363%22%7D
+
+				let baseURL = "https://navisport.com/trpc/eventsTrpcRouter.getEvent";
+				let navipromise = $.get(baseURL, { batch: 1, input: JSON.stringify({ "0": navisportEventId }) }, null, "json");
+
+				return navipromise.then((naviret) => {
+					console.log(naviret);
+					/* res = {
+						"id": "2ff0357f-6402-4b0a-8b59-3a6ddf81325e",
+						"bibNumber": 39,
+						"courseId": "527109ed-2532-4409-b801-e7c3d69395af",
+						"classId": "9eeb4ce9-95ee-4e1d-a43a-9148930d9afe",
+						"startTime": "2024-07-21T09:16:00.000Z",
+						"name": "Hirvikallio Joni",
+						"club": "Koovee",
+						"nationality": "FIN",
+						"chip": "534078",
+						"private": false,
+						"status": "Dns",
+						"registered": true,
+						"time": 0,
+						"points": 0
+					} */
+
+					// get classnames from classes
+					let classNames = naviret[0]?.result?.data?.courseClasses?.reduce((classes, currClass) => {
+						classes[currClass.id] = currClass.name;
+						return classes;
+					}, []);
+
+					console.log(classNames);
 
 
+					let starttimes = naviret[0].result.data.results?.map((res) => {
+						return {
+							id: res["id"],
+							name: res["name"],
+							// format starttime to be seconds since midnight / timeRes
+							starttime: starttimeToPirila(res["startTime"], timeRes),
+							status: res["status"],
+							emit: res["chip"],
+							bib: res["bibNumber"],
+							// get the class name from Id
+							class: classNames[res["classId"]],
+							classid: res["classId"],
+							navisport: true
+						}
+					});
+
+					if (selectedClasses.length > 0 && selectedClasses[0] != '') {
+						starttimes = starttimes.filter((el) => selectedClasses.includes(el["class"]));
+					}
+
+					// combine Pirilä starttimes and Navisport starttimes
+					returntimes = returntimes.concat(starttimes);
+
+					console.log(returntimes);
+
+					return returntimes;
+				})
+					.catch((err) => {
+						console.error(err);
+					});
+			} else {
+				return returntimes;
+			}
 		});
 	});
 }
 
-
+function starttimeToPirila(starttimeString, timeRes) {
+	let starttime = new Date(starttimeString);
+	const midnight = new Date(starttime.getFullYear(), starttime.getMonth(), starttime.getDate());
+	const secondsSinceMidnight = (starttime.getTime() - midnight.getTime()) / 1000;
+	return secondsSinceMidnight / timeRes;
+}
 
 
 $(document).ready(function () {
@@ -251,8 +326,8 @@ $(document).ready(function () {
 					<div><label for="started-${competitor.id}">Started: </label><input id="started-${competitor.id}" type="checkbox" class="started" /></div>
                     <div class="namecol">${competitor.name}</div>
                     <div class="bib">${competitor.bib}</div>
-                    <div><input type="text" class="emit-number emitNumber" value="${competitor.emit}"></div>
-                    <div class="classname">${competitor.class}</div>
+                    <div><input type="text" class="emit-number emitNumber" value="${competitor.emit}" /></div>
+                    <div class="classname${competitor.navisport ? " navisport" : ""}">${competitor.class}</div>
                     <div><input type="text" class="start-time startTime" value="${formatTime(competitor.starttime, timeRes)}"></div>
                 </div>
             `;
@@ -397,7 +472,7 @@ $(document).ready(function () {
 					name: row.data("name"),
 					modifiedFields: modifiedFields, // Add modified fields to the message,
 					modifiedTime: new Date().getTime(),
-					...(passwd && {pw: SHA512.hex(passwd)}),
+					...(passwd && { pw: SHA512.hex(passwd) }),
 				};
 				console.log(message);
 				socket.emit('competitor_update', message);
