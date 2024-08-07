@@ -264,9 +264,9 @@ function loadResults() {
 							name: res["name"],
 							// format starttime to be seconds since midnight / timeRes
 							starttime: starttimeToPirila(res["startTime"], timeRes),
-							status: res["status"],
-							emit: res["chip"],
-							bib: res["bibNumber"],
+							status: ("" + res["status"]).toUpperCase(),
+							emit: res["chip"] || 0,
+							bib: res["bibNumber"] || 0,
 							// get the class name from Id
 							class: classNames[res["classId"]],
 							classid: res["classId"],
@@ -296,6 +296,9 @@ function loadResults() {
 }
 
 function starttimeToPirila(starttimeString, timeRes) {
+	if (starttimeString == null || starttimeString === "") {
+		return 60*60*24 / timeRes;
+	}
 	let starttime = new Date(starttimeString);
 	const midnight = new Date(starttime.getFullYear(), starttime.getMonth(), starttime.getDate());
 	const secondsSinceMidnight = (starttime.getTime() - midnight.getTime()) / 1000;
