@@ -1,16 +1,18 @@
 /* Add your custom styles here */
 .container {
     margin-top: 20px;
+		font-size: 0.8rem;
 }
 
 .competitor-row {
     margin-bottom: 10px;
 }
 
+/*
 .competitor-row {
 	border: 1px solid #ccc;
 	margin-bottom: 2px;
-	width: 100%; /* Adjust width as needed */
+	width: 100%; /* Adjust width as needed *
 	display: flex;
 	flex-wrap: wrap;
 }
@@ -19,10 +21,50 @@
 	flex: 1;
 	text-align: center;
 }
+*/
+
+.competitor-row {
+    display: grid;
+    grid-template-columns: 
+        auto         /* Checkbox */
+        2fr          /* Name */
+        1fr          /* Club */
+        auto         /* Bib */
+        auto         /* Emit */
+        1fr          /* Class */
+        auto;        /* Start time */
+    border: 1px solid #ccc;
+    margin-bottom: 2px;
+    width: 100%;
+    align-items: center;
+    gap: 5px;
+}
+
+@media (max-width: 580px) {
+    .competitor-row {
+        grid-template-columns: 
+            auto 3fr auto 2fr; /* 4 columns per row, wraps automatically */
+    }
+}
+
+@media (max-width: 400px) {
+    .competitor-row {
+        grid-template-columns: 
+            1fr 1fr 1fr; /* 3 columns per row, wraps automatically */
+    }
+}
+
+.competitor-row > div {
+    min-width: 0;
+    padding: 5px;
+    text-align: center;
+    box-sizing: border-box;
+    /*word-break: break-word;*/
+}
 
 .competitor-row input[type="text"] {
-	width: 100%;
-	box-sizing: border-box;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .namecol {

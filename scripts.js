@@ -6,7 +6,7 @@
 const urlParams = new URLSearchParams(window.location.search);
 
 // Online event id kisalle
-const ol_eventid = urlParams.get('eventid') || "2024_aland";
+const ol_eventid = urlParams.get('eventid') || "2025_ice";
 const online_domain = "./corsproxy.php?csurl=https://online4.tulospalvelu.fi";
 
 const navisportEventId = urlParams.get('navisportid') || "" /*|| "55d59689-d0ef-4b8c-afe9-71a92d73e363"*/;
@@ -56,7 +56,7 @@ function loadResults() {
 
 	return $.when(onlinepromise).then((eventret) => {
 
-		console.log(eventret);
+		//console.log(eventret);
 		let event = eventret;
 		//return;
 
@@ -143,11 +143,13 @@ function loadResults() {
 
 			//console.log(allresults, resultsres);
 			let competitors = competitorsres[0].Competitors;
+			let clubs = competitorsres[0].Clubs;
 			//console.log(competitors);
 
 			let ol_competitor_ids = [];
 			let ol_competitors = [];
 			let ol_competitor_names = {};
+			let ol_competitor_clubs = {};
 			let ol_competitor_reverse = {};
 			let starttimes = [];
 			let resulttimes = [];
@@ -207,6 +209,7 @@ function loadResults() {
 						//console.log("adding name: " + competitors[i][8] + " " + competitors[i][7]);
 						//ol_competitor_names[competitors[i][0]] = competitors[i][8] + " " + competitors[i][7];
 						ol_competitor_names[competitors[i][0]] = competitors[i][7] + " " + competitors[i][8];
+						ol_competitor_clubs[competitors[i][0]] = clubs.find((club) => club[0] === competitors[i][1])?.[2] || ""; // Short clubname
 					}
 				}
 			} else {
@@ -217,7 +220,7 @@ function loadResults() {
 			let returntimes = [];
 
 			starttimes.forEach((time, id) => {
-				returntimes.push({ id: id, name: ol_competitor_names[id], starttime: time, status: statuses[id], emit: emitnums[id], bib: bibs[id], class: classes[id], classid: classids[id], navisport: false });
+				returntimes.push({ id: id, name: ol_competitor_names[id], club: ol_competitor_clubs[id],starttime: time, status: statuses[id], emit: emitnums[id], bib: bibs[id], class: classes[id], classid: classids[id], navisport: false });
 			});
 
 			return returntimes;
@@ -231,7 +234,7 @@ function loadResults() {
 				let navipromise = $.get(baseURL, { batch: 1, input: JSON.stringify({ "0": navisportEventId }) }, null, "json");
 
 				return navipromise.then((naviret) => {
-					console.log(naviret);
+					//console.log(naviret);
 					/* res = {
 						"id": "2ff0357f-6402-4b0a-8b59-3a6ddf81325e",
 						"bibNumber": 39,
@@ -255,7 +258,7 @@ function loadResults() {
 						return classes;
 					}, []);
 
-					console.log(classNames);
+					//console.log(classNames);
 
 
 					let starttimes = naviret[0].result.data.results?.map((res) => {
@@ -281,7 +284,7 @@ function loadResults() {
 					// combine Pirilä starttimes and Navisport starttimes
 					returntimes = returntimes.concat(starttimes);
 
-					console.log(returntimes);
+					//console.log(returntimes);
 
 					return returntimes;
 				})
@@ -322,16 +325,19 @@ $(document).ready(function () {
 
 		orderStarttimes(competitors);
 
+		//console.log(competitors);
+
 		let laststarttime = 0;
 		competitors.forEach(competitor => {
 			const row = `
-                <div class="competitor-row" data-id="${competitor.id}" data-bib="${competitor.bib}" data-name="${competitor.name}" data-starttime="${competitor.starttime}" data-emit="${competitor.emit}" data-started="false" >
+                <div class="competitor-row" data-id="${competitor.id}" data-bib="${competitor.bib}" data-name="${competitor.name}" data-club="${competitor.club}" data-starttime="${competitor.starttime}" data-emit="${competitor.emit}" data-started="false" >
 					<div><label for="started-${competitor.id}">Started: </label><input id="started-${competitor.id}" type="checkbox" class="started" /></div>
                     <div class="namecol">${competitor.name}</div>
+										<div class="clubcol">${competitor.club}</div>
                     <div class="bib">${competitor.bib}</div>
-                    <div><input type="text" class="emit-number emitNumber" value="${competitor.emit}" /></div>
+                    <div class="inputdiv"><input type="text" class="emit-number emitNumber" value="${competitor.emit}" size="6" /></div>
                     <div class="classname${competitor.navisport ? " navisport" : ""}">${competitor.class}</div>
-                    <div><input type="text" class="start-time startTime" value="${formatTime(competitor.starttime, timeRes)}"></div>
+                    <div class="inputdiv"><input type="text" class="start-time startTime" value="${formatTime(competitor.starttime, timeRes)}" size="7"></div>
                 </div>
             `;
 			if (laststarttime != competitor.starttime) {
@@ -389,11 +395,11 @@ $(document).ready(function () {
 			// Update only the modified fields
 			message.modifiedFields?.forEach(field => {
 				if (field == "started") {
-					console.log(competitorRow.find(`.${field}`).is(":checked"));
+					//console.log(competitorRow.find(`.${field}`).is(":checked"));
 					competitorRow.find(`.${field}`).prop('checked', message[field]);
 					competitorRow.find(`.${field}`).addClass("updated");
 				} else {
-					console.log(competitorRow.find(`.${field}`).val(), message[field]);
+					//console.log(competitorRow.find(`.${field}`).val(), message[field]);
 					competitorRow.find(`.${field}`).val(message[field]).addClass('updated');
 				}
 			});
@@ -429,7 +435,7 @@ $(document).ready(function () {
 	function processMessageQueue() {
 		messageQueue.forEach(message => {
 			if (message.eventid != ol_eventid || message.raceno != raceno) {
-				console.log("Wrong race", message, raceno);
+				//console.log("Wrong race", message, raceno);
 				return;
 			}
 			updateFromMessage(message);
@@ -491,7 +497,7 @@ $(document).ready(function () {
 
 	// Receiver side (when receiving the message)
 	socket.on('competitor_update', function (message) {
-		console.log("Received competitor update message:", message);
+		//console.log("Received competitor update message:", message);
 
 		// Check if competitors are already loaded
 		if ($('#competitors-list .competitor-row').length > 0) {
