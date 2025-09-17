@@ -14,7 +14,8 @@ const navisportEventId = urlParams.get('navisportid') || "" /*|| "55d59689-d0ef-
 const passwd = urlParams.get('pw') || "";
 const SHA512 = new Hashes.SHA512;
 
-let selectedClasses = (urlParams.get('classes') || "").split(",");
+let selectedClasses = (urlParams.get('classes') || "").split(",").filter((val) => val != '');
+let selectedStarts = (urlParams.get('start') || "").split(",");
 let debug = false;
 let timeRes = 1;
 let raceno = 1;
@@ -80,6 +81,25 @@ function loadResults() {
 
 		$("#eventname").text(event.Headers.EventTitle + ", RaceNo " + raceno);
 
+		//console.log("Selected starts 1", selectedStarts);
+		//console.log("Selected classes 1", selectedClasses);
+		// Set selectedClasses based on selected starts
+		if (selectedStarts.length > 0 && selectedStarts[0] != '') {
+			event.Classes.forEach((valclass) => {
+				if (selectedClasses.includes(valclass.ClassNameShort)) return;
+				//let startGates = valclass.Races.reduce((acc, race) => (acc.push(race.StartGate)), []);
+				let startGates = [];
+				valclass.Races.forEach((race) => {
+					startGates.push(race.StartGate);
+				});
+				//console.log(startGates, selectedStarts);
+				if (selectedStarts.some((start) => (startGates.includes(parseInt(start))))) {
+					selectedClasses.push(valclass.ClassNameShort);
+				}
+			});
+			console.log("Selected classes", selectedClasses);
+		}
+
 		let fetchClasses = [];
 		event.Classes.forEach((valclass) => {
 			//console.log(selectedClasses, selectedClasses.includes(valclass.ClassNameShort), selectedClasses.length > 0 && !selectedClasses.includes(valclass.ClassNameShort));
@@ -142,6 +162,11 @@ function loadResults() {
 		return $.when(...promises).then((competitorsres, ...resultsres) => {
 
 			//console.log(allresults, resultsres);
+			//console.log(competitorsres);
+			if (!Array.isArray(competitorsres)) {
+				// no results or classes?
+				console.log("No classes?");
+			}
 			let competitors = competitorsres[0].Competitors;
 			let clubs = competitorsres[0].Clubs;
 			//console.log(competitors);

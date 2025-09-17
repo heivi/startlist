@@ -10,6 +10,8 @@ The navisport race is selected with query parameter navisportid (for example "<u
 
 You can also show only some classes (if for example two different starts) by listing wanted classes (short name) in classes query parameter, for example "?classes=H21,D21" after the url.
 
+It is also possible to select a specific start by adding "?start=x" parameter, where x is the start number in the online data. Classes from parameter classes are added also.
+
 A password can also be set for the page, so that only the pages with the same password will show the modifications/updates. The password can be set by query parameter "pw", for example "?pw=password". If no password is set, then it is ignored, and all incoming changes are shown.
 
 Full url example with parameters: https://virekunnas.fi/startlist/?eventid=2024_aland&raceno=1&classes=H21,D21&pw=organizersecret&navisportid=55d59689-d0ef-4b8c-afe9-71a92d73e363
