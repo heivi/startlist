@@ -77,7 +77,7 @@ function loadResults() {
 		let classidcol = -1;
 		const timezone = event.Races[0].RaceTimeZoneMin;
 
-		raceno = urlParams.get('raceno') || event.Headers.CurrentRace;
+		raceno = parseInt(urlParams.get('raceno')) || event.Headers.CurrentRace;
 
 		$("#eventname").text(event.Headers.EventTitle + ", RaceNo " + raceno);
 
