@@ -4,9 +4,15 @@
 
 
 const urlParams = new URLSearchParams(window.location.search);
+let navisportonly = false;
 
 // Online event id kisalle
-const ol_eventid = urlParams.get('eventid') || "2025_ice";
+const ol_eventid = urlParams.get('eventid');
+
+if (!ol_eventid) {
+	navisportonly = true;
+}
+
 const online_domain = "./corsproxy.php?csurl=https://online4.tulospalvelu.fi";
 
 const navisportEventId = urlParams.get('navisportid') || "" /*|| "55d59689-d0ef-4b8c-afe9-71a92d73e363"*/;
@@ -20,7 +26,7 @@ let debug = false;
 let timeRes = 1;
 let raceno = 1;
 
-function formatTime(time, timePrecision) {
+function formatTime(time, timePrecision, hoursAlways = false) {
 	const seconds = Math.floor(time / timePrecision) % 60;
 	const minutes = Math.floor(time / (timePrecision * 60)) % 60;
 	const hours = Math.floor(time / (timePrecision * 3600));
@@ -30,7 +36,7 @@ function formatTime(time, timePrecision) {
 	const formattedMinutes = minutes < 10 ? `0${minutes}` : `${minutes}`;
 	const formattedSeconds = seconds < 10 ? `0${seconds}` : `${seconds}`;
 
-	if (hours > 0) {
+	if (hours > 0 || hoursAlways) {
 		return `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
 	} else {
 		return `${formattedMinutes}:${formattedSeconds}`;
@@ -47,7 +53,7 @@ function orderStarttimes(results) {
 	});
 }
 
-function loadResults() {
+async function loadOnlineResults() {
 
 	const online_event_url = online_domain + "/tulokset-new/online/online_" + ol_eventid + "_event.json&a=" + Date.now();
 	const online_competitors_url = online_domain + "/tulokset-new/online/online_" + ol_eventid + "_competitors.json&a=" + Date.now();
@@ -245,87 +251,92 @@ function loadResults() {
 			let returntimes = [];
 
 			starttimes.forEach((time, id) => {
-				returntimes.push({ id: id, name: ol_competitor_names[id], club: ol_competitor_clubs[id],starttime: time, status: statuses[id], emit: emitnums[id], bib: bibs[id], class: classes[id], classid: classids[id], navisport: false });
+				returntimes.push({ id: id, name: ol_competitor_names[id], club: ol_competitor_clubs[id], starttime: time, status: statuses[id], emit: emitnums[id], bib: bibs[id], class: classes[id], classid: classids[id], navisport: false });
 			});
 
 			return returntimes;
-		}).then((returntimes) => {
-			// Navisport
-			if (navisportEventId && navisportEventId != "") {
-				// Fetch from navisport
-				// https://navisport.com/trpc/eventsTrpcRouter.getEvent?batch=1&input=%7B%220%22%3A%2255d59689-d0ef-4b8c-afe9-71a92d73e363%22%7D
-
-				let baseURL = "https://navisport.com/trpc/eventsTrpcRouter.getEvent";
-				let navipromise = $.get(baseURL, { batch: 1, input: JSON.stringify({ "0": navisportEventId }) }, null, "json");
-
-				return navipromise.then((naviret) => {
-					//console.log(naviret);
-					/* res = {
-						"id": "2ff0357f-6402-4b0a-8b59-3a6ddf81325e",
-						"bibNumber": 39,
-						"courseId": "527109ed-2532-4409-b801-e7c3d69395af",
-						"classId": "9eeb4ce9-95ee-4e1d-a43a-9148930d9afe",
-						"startTime": "2024-07-21T09:16:00.000Z",
-						"name": "Hirvikallio Joni",
-						"club": "Koovee",
-						"nationality": "FIN",
-						"chip": "534078",
-						"private": false,
-						"status": "Dns",
-						"registered": true,
-						"time": 0,
-						"points": 0
-					} */
-
-					// get classnames from classes
-					let classNames = naviret[0]?.result?.data?.courseClasses?.reduce((classes, currClass) => {
-						classes[currClass.id] = currClass.name;
-						return classes;
-					}, []);
-
-					//console.log(classNames);
-
-
-					let starttimes = naviret[0].result.data.results?.map((res) => {
-						return {
-							id: res["id"],
-							name: res["name"],
-							// format starttime to be seconds since midnight / timeRes
-							starttime: starttimeToPirila(res["startTime"], timeRes),
-							status: ("" + res["status"]).toUpperCase(),
-							emit: res["chip"] || 0,
-							bib: res["bibNumber"] || 0,
-							// get the class name from Id
-							class: classNames[res["classId"]],
-							classid: res["classId"],
-							navisport: true
-						}
-					});
-
-					if (selectedClasses.length > 0 && selectedClasses[0] != '') {
-						starttimes = starttimes.filter((el) => selectedClasses.includes(el["class"]));
-					}
-
-					// combine Pirilä starttimes and Navisport starttimes
-					returntimes = returntimes.concat(starttimes);
-
-					//console.log(returntimes);
-
-					return returntimes;
-				})
-					.catch((err) => {
-						console.error(err);
-					});
-			} else {
-				return returntimes;
-			}
+		}).catch((err) => {
+			console.error("Failed to load competitors or results data", err);
+			return [];
 		});
+	}).catch((err) => {
+		console.error("Failed to load event data", err);
+		return [];
 	});
+}
+
+function loadNavisportResults() {
+	// Navisport
+	if (navisportEventId && navisportEventId != "") {
+		// Fetch from navisport
+		// https://navisport.com/trpc/eventsTrpcRouter.getEvent?batch=1&input=%7B%220%22%3A%2255d59689-d0ef-4b8c-afe9-71a92d73e363%22%7D
+
+		let baseURL = "https://navisport.com/trpc/eventsTrpcRouter.getEvent";
+		let navipromise = $.get(baseURL, { batch: 1, input: JSON.stringify({ "0": navisportEventId }) }, null, "json");
+
+		return navipromise.then((naviret) => {
+			//console.log(naviret);
+			/* res = {
+				"id": "2ff0357f-6402-4b0a-8b59-3a6ddf81325e",
+				"bibNumber": 39,
+				"courseId": "527109ed-2532-4409-b801-e7c3d69395af",
+				"classId": "9eeb4ce9-95ee-4e1d-a43a-9148930d9afe",
+				"startTime": "2024-07-21T09:16:00.000Z",
+				"name": "Hirvikallio Joni",
+				"club": "Koovee",
+				"nationality": "FIN",
+				"chip": "534078",
+				"private": false,
+				"status": "Dns",
+				"registered": true,
+				"time": 0,
+				"points": 0
+			} */
+
+			// get classnames from classes
+			let classNames = naviret[0]?.result?.data?.courseClasses?.reduce((classes, currClass) => {
+				classes[currClass.id] = currClass.name;
+				return classes;
+			}, []);
+
+			//console.log(classNames);
+
+
+			let starttimes = naviret[0].result.data.results?.map((res) => {
+				return {
+					id: res["id"],
+					name: res["name"],
+					// format starttime to be seconds since midnight / timeRes
+					starttime: res["startTime"] ? starttimeToPirila(res["startTime"], timeRes) : 0,
+					status: ("" + res["status"]).toUpperCase(),
+					emit: res["chip"] || 0,
+					bib: res["bibNumber"] || 0,
+					// get the class name from Id
+					class: classNames[res["classId"]],
+					classid: res["classId"],
+					club: res["club"] || "",
+					navisport: true
+				}
+			});
+
+			if (selectedClasses.length > 0 && selectedClasses[0] != '') {
+				starttimes = starttimes.filter((el) => selectedClasses.includes(el["class"]));
+			}
+
+			return starttimes;
+		})
+			.catch((err) => {
+				console.error(err);
+				return [];
+			});
+	} else {
+		return [];
+	}
 }
 
 function starttimeToPirila(starttimeString, timeRes) {
 	if (starttimeString == null || starttimeString === "") {
-		return 60*60*24 / timeRes;
+		return 60 * 60 * 24 / timeRes;
 	}
 	let starttime = new Date(starttimeString);
 	const midnight = new Date(starttime.getFullYear(), starttime.getMonth(), starttime.getDate());
@@ -345,6 +356,11 @@ $(document).ready(function () {
 
 	// Function to render competitors list
 	function renderCompetitors(competitors) {
+		if (competitors.length < 1) {
+			$('#competitors-list').html("<p>No competitors found for the selected classes or starts.</p>");
+			return;
+		}
+
 		const competitorsList = $('#competitors-list');
 		competitorsList.empty();
 
@@ -352,25 +368,44 @@ $(document).ready(function () {
 
 		//console.log(competitors);
 
-		let laststarttime = 0;
+		let laststarttime = -1;
+		let lasttime = 0;
 		competitors.forEach(competitor => {
+			// Add "No starters" entries for gaps between start times
+			const currenttime = competitor.starttime;
+			if (lasttime > 0 && lasttime < currenttime - 60 * timeRes) {
+				// Add placeholders for each minute gap
+				for (let t = lasttime + 60 * timeRes; t < currenttime; t += 60 * timeRes) {
+					const timeStr = formatTime(t, timeRes, true);
+					const row = `
+					<hr data-time="${t}"/>
+					<div class="timeheader" data-time="${t}"/>${formatTime(t, timeRes, true)}</div>
+						<div class="no-starters" data-time="${t}">
+							<div class="no-starters-text">No starters</div>
+						</div>
+					`;
+					competitorsList.append(row);
+				}
+			}
 			const row = `
                 <div class="competitor-row" data-id="${competitor.id}" data-bib="${competitor.bib}" data-name="${competitor.name}" data-club="${competitor.club}" data-starttime="${competitor.starttime}" data-emit="${competitor.emit}" data-started="false" >
 					<div><label for="started-${competitor.id}">Started: </label><input id="started-${competitor.id}" type="checkbox" class="started" /></div>
                     <div class="namecol">${competitor.name}</div>
 										<div class="clubcol">${competitor.club}</div>
                     <div class="bib">${competitor.bib}</div>
-                    <div class="inputdiv"><input type="text" class="emit-number emitNumber" value="${competitor.emit}" size="6" /></div>
+                    <div class="inputdiv"><input type="text" class="emit-number emitNumber" value="${competitor.emit}" size="8" /></div>
                     <div class="classname${competitor.navisport ? " navisport" : ""}">${competitor.class}</div>
-                    <div class="inputdiv"><input type="text" class="start-time startTime" value="${formatTime(competitor.starttime, timeRes)}" size="7"></div>
+                    <div class="inputdiv"><input type="text" class="start-time startTime" value="${formatTime(competitor.starttime, timeRes, true)}" size="8"></div>
                 </div>
             `;
 			if (laststarttime != competitor.starttime) {
-				competitorsList.append('<hr data-time="' + laststarttime + '"/>');
+				competitorsList.append('<hr data-time="' + competitor.starttime + '"/>');
+				competitorsList.append('<div class="timeheader" data-time="' + competitor.starttime + '"/>' + formatTime(competitor.starttime, timeRes, true) + '</div>');
 			}
 			competitorsList.append(row);
 
 			laststarttime = competitor.starttime;
+			lasttime = competitor.starttime;
 		});
 
 		// Process queued messages after competitors are loaded
@@ -470,50 +505,56 @@ $(document).ready(function () {
 	}
 
 	// Function to fetch and display competitors list
-	function fetchAndDisplayCompetitors() {
-		// Call your loadResults function to fetch data
-		loadResults().then(competitors => {
-			//console.log(JSON.stringify(competitors));
-			renderCompetitors(competitors);
+	async function fetchAndDisplayCompetitors() {
+		// Load results, combine if necessary and render
+		let onlineResults = [];
+		let navisportResults = [];
+		if (!navisportonly) {
+			onlineResults = await loadOnlineResults();
+		}
+		if (navisportEventId && navisportEventId != "") {
+			navisportResults = await loadNavisportResults();
+		}
+		let competitors = [...onlineResults, ...navisportResults];
 
-			// Sender side (when emitting the message)
-			$('.competitor-row input').on('change', function (e) {
-				const row = $(this).closest('.competitor-row');
-				const emitNumber = row.find('.emit-number').val();
-				const startTime = row.find('.start-time').val();
-				const started = row.find('.started').is(":checked");
-				const modifiedFields = []; // Array to store modified fields
-				if (parseInt(emitNumber) !== parseInt(row.data("emit"))) {
-					modifiedFields.push('emitNumber');
-					row.find('.emit-number').addClass("updated");
-				}
-				if (startTime !== formatTime(row.data("starttime"), timeRes)) {
-					modifiedFields.push('startTime');
-					row.find('.startTime').addClass("updated");
-				}
-				if ($(this).hasClass("started")) {
-					modifiedFields.push('started');
-					row.find('.started').addClass("updated");
-				}
-				const message = {
-					eventid: ol_eventid,
-					raceno: raceno,
-					emitNumber: emitNumber,
-					startTime: startTime,
-					started: started,
-					bib: row.data("bib"),
-					id: row.data("id"),
-					name: row.data("name"),
-					modifiedFields: modifiedFields, // Add modified fields to the message,
-					modifiedTime: new Date().getTime(),
-					...(passwd && { pw: SHA512.hex(passwd) }),
-				};
-				console.log(message);
-				socket.emit('competitor_update', message);
-				addToMessageList(message);
-			});
-		}).fail(function (e) {
-			console.error("Failed to load competitors data", e);
+		//console.log(JSON.stringify(competitors));
+		renderCompetitors(competitors);
+
+		// Sender side (when emitting the message)
+		$('.competitor-row input').on('change', function (e) {
+			const row = $(this).closest('.competitor-row');
+			const emitNumber = row.find('.emit-number').val();
+			const startTime = row.find('.start-time').val();
+			const started = row.find('.started').is(":checked");
+			const modifiedFields = []; // Array to store modified fields
+			if (parseInt(emitNumber) !== parseInt(row.data("emit"))) {
+				modifiedFields.push('emitNumber');
+				row.find('.emit-number').addClass("updated");
+			}
+			if (startTime !== formatTime(row.data("starttime"), timeRes, true)) {
+				modifiedFields.push('startTime');
+				row.find('.startTime').addClass("updated");
+			}
+			if ($(this).hasClass("started")) {
+				modifiedFields.push('started');
+				row.find('.started').addClass("updated");
+			}
+			const message = {
+				eventid: ol_eventid,
+				raceno: raceno,
+				emitNumber: emitNumber,
+				startTime: startTime,
+				started: started,
+				bib: row.data("bib"),
+				id: row.data("id"),
+				name: row.data("name"),
+				modifiedFields: modifiedFields, // Add modified fields to the message,
+				modifiedTime: new Date().getTime(),
+				...(passwd && { pw: SHA512.hex(passwd) }),
+			};
+			console.log(message);
+			socket.emit('competitor_update', message);
+			addToMessageList(message);
 		});
 	}
 

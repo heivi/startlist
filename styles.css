@@ -40,6 +40,26 @@
     gap: 5px;
 }
 
+.no-starters {
+    display: block;
+    margin-bottom: 2px;
+    width: 100%;
+    align-items: center;
+    font-size: 1.2em;
+}
+
+.no-starters-text {
+    text-align: center;
+    font-weight: bold !important;
+}
+
+.timeheader {
+    font-weight: bold;
+    font-size: 1.2em;
+    margin-top: 20px;
+    text-align: center;
+}
+
 @media (max-width: 580px) {
     .competitor-row {
         grid-template-columns: 
