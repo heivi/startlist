@@ -24,7 +24,7 @@ let selectedClasses = (urlParams.get('classes') || "").split(",").filter((val) =
 let selectedStarts = (urlParams.get('start') || "").split(",");
 let debug = false;
 let timeRes = 1;
-let raceno = 1;
+let raceno = parseInt(urlParams.get('raceno')) || 1;
 
 function formatTime(time, timePrecision, hoursAlways = false) {
 	const seconds = Math.floor(time / timePrecision) % 60;
@@ -275,49 +275,94 @@ function loadNavisportResults() {
 		let navipromise = $.get(baseURL, { batch: 1, input: JSON.stringify({ "0": navisportEventId }) }, null, "json");
 
 		return navipromise.then((naviret) => {
-			//console.log(naviret);
-			/* res = {
-				"id": "2ff0357f-6402-4b0a-8b59-3a6ddf81325e",
-				"bibNumber": 39,
-				"courseId": "527109ed-2532-4409-b801-e7c3d69395af",
-				"classId": "9eeb4ce9-95ee-4e1d-a43a-9148930d9afe",
-				"startTime": "2024-07-21T09:16:00.000Z",
-				"name": "Hirvikallio Joni",
-				"club": "Koovee",
-				"nationality": "FIN",
-				"chip": "534078",
-				"private": false,
-				"status": "Dns",
-				"registered": true,
-				"time": 0,
-				"points": 0
-			} */
 
-			// get classnames from classes
-			let classNames = naviret[0]?.result?.data?.courseClasses?.reduce((classes, currClass) => {
-				classes[currClass.id] = currClass.name;
-				return classes;
-			}, []);
+			let classNames = [];
+			let starttimes = [];
 
-			//console.log(classNames);
+			console.log(naviret);
 
-
-			let starttimes = naviret[0].result.data.results?.map((res) => {
-				return {
-					id: res["id"],
-					name: res["name"],
-					// format starttime to be seconds since midnight / timeRes
-					starttime: res["startTime"] ? starttimeToPirila(res["startTime"], timeRes) : 0,
-					status: ("" + res["status"]).toUpperCase(),
-					emit: res["chip"] || 0,
-					bib: res["bibNumber"] || 0,
-					// get the class name from Id
-					class: classNames[res["classId"]],
-					classid: res["classId"],
-					club: res["club"] || "",
-					navisport: true
+			// Multistage event?
+			if (naviret[0]?.result?.data?.eventKind == "Multistage event") {
+				// find the results for the right stage
+				let event = naviret[0]?.result?.data?.events.find((ev) => ev.stageNumber == raceno);
+				console.log("Event", raceno, event, naviret[0]?.result?.data?.events);
+				if (!event) {
+					console.error("No stage found");
+					return [];
 				}
-			});
+
+				let competitors = naviret[0]?.result?.data?.results;
+
+				let results = event.results;
+				let courseClasses = event.courseClasses;
+
+				classNames = courseClasses.reduce((classes, currClass) => {
+					classes[currClass.id] = currClass.name;
+					return classes;
+				}, []);
+
+				console.log(classNames);
+
+				// filter non-starters
+				starttimes = results.filter((res) => res.status !== "Not competing").map((res) => {
+					// Find name from competitors
+					let competitor = competitors.find((comp) => comp.id == res.parentId);
+					return {
+						id: res["id"],
+						name: competitor && competitor.name ? competitor.name : "Unknown",
+						// format starttime to be seconds since midnight / timeRes
+						starttime: res["startTime"] ? starttimeToPirila(res["startTime"], timeRes) : 0,
+						status: ("" + res["status"]).toUpperCase(),
+						emit: competitor && competitor.chip ? competitor.chip : 0,
+						bib: competitor && competitor.bibNumber ? competitor.bibNumber : "",
+						// get the class name from Id
+						class: classNames[res["classId"]] || "?",
+						classid: res["classId"],
+						club: competitor && competitor.club ? competitor.club : "",
+						navisport: true
+					};
+				});
+			} else if (naviret[0]?.result?.data?.eventKind == "Event") {
+				/* res = {
+					"id": "2ff0357f-6402-4b0a-8b59-3a6ddf81325e",
+					"bibNumber": 39,
+					"courseId": "527109ed-2532-4409-b801-e7c3d69395af",
+					"classId": "9eeb4ce9-95ee-4e1d-a43a-9148930d9afe",
+					"startTime": "2024-07-21T09:16:00.000Z",
+					"name": "Hirvikallio Joni",
+					"club": "Koovee",
+					"nationality": "FIN",
+					"chip": "534078",
+					"private": false,
+					"status": "Dns",
+					"registered": true,
+					"time": 0,
+					"points": 0
+				} */
+
+				// get classnames from classes
+				classNames = naviret[0]?.result?.data?.courseClasses?.reduce((classes, currClass) => {
+					classes[currClass.id] = currClass.name;
+					return classes;
+				}, []);
+
+				starttimes = naviret[0].result.data.results?.map((res) => {
+					return {
+						id: res["id"],
+						name: res["name"],
+						// format starttime to be seconds since midnight / timeRes
+						starttime: res["startTime"] ? starttimeToPirila(res["startTime"], timeRes) : 0,
+						status: ("" + res["status"]).toUpperCase(),
+						emit: res["chip"] || 0,
+						bib: res["bibNumber"] || 0,
+						// get the class name from Id
+						class: classNames[res["classId"]],
+						classid: res["classId"],
+						club: res["club"] || "",
+						navisport: true
+					}
+				});
+			}
 
 			if (selectedClasses.length > 0 && selectedClasses[0] != '') {
 				starttimes = starttimes.filter((el) => selectedClasses.includes(el["class"]));
