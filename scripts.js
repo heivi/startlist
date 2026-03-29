@@ -1,6 +1,7 @@
 // TODO: add realtime updates from online?
 // TODO: competition selector?
 // TODO: non-started list
+// TODO: prestartmin parameter for caller/live time sync
 
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -12,6 +13,9 @@ const ol_eventid = urlParams.get('eventid');
 if (!ol_eventid) {
 	navisportonly = true;
 }
+
+const prestartmin = parseInt(urlParams.get('prestartmin')) || 0;
+const testtimeoffset = parseInt(urlParams.get('timeoffset')) || 0;
 
 const online_domain = "./corsproxy.php?csurl=https://online4.tulospalvelu.fi";
 
@@ -279,13 +283,17 @@ function loadNavisportResults() {
 			let classNames = [];
 			let starttimes = [];
 
-			console.log(naviret);
+			if (naviret[0]?.result?.data?.name) {
+				$("#eventname").text(naviret[0]?.result?.data?.name + ", RaceNo " + raceno);
+			}
+
+			//console.log(naviret);
 
 			// Multistage event?
 			if (naviret[0]?.result?.data?.eventKind == "Multistage event") {
 				// find the results for the right stage
 				let event = naviret[0]?.result?.data?.events.find((ev) => ev.stageNumber == raceno);
-				console.log("Event", raceno, event, naviret[0]?.result?.data?.events);
+				//console.log("Event", raceno, event, naviret[0]?.result?.data?.events);
 				if (!event) {
 					console.error("No stage found");
 					return [];
@@ -301,7 +309,7 @@ function loadNavisportResults() {
 					return classes;
 				}, []);
 
-				console.log(classNames);
+				//console.log(classNames);
 
 				// filter non-starters
 				starttimes = results.filter((res) => res.status !== "Not competing").map((res) => {
@@ -389,6 +397,68 @@ function starttimeToPirila(starttimeString, timeRes) {
 	return secondsSinceMidnight / timeRes;
 }
 
+// Function to update the running clock
+function updateClock() {
+	const now = new Date();
+	const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+	const secondsSinceMidnight = (now.getTime() - midnight.getTime()) / 1000 - testtimeoffset;
+
+	const currentTime = formatTime(secondsSinceMidnight, timeRes, true);
+	$('#current-time').text(currentTime);
+
+	// Calculate prestart time
+	const prestartTime = secondsSinceMidnight + (prestartmin * 60);
+	const prestartTimeFormatted = formatTime(prestartTime, timeRes, true);
+	$('#prestart-time').text(prestartTimeFormatted);
+
+	// Highlight competitors for current time
+	highlightCurrentCompetitors(prestartTime);
+}
+
+// Function to highlight competitors for current time
+function highlightCurrentCompetitors(currentTime) {
+	// Remove previous highlights
+	$('.competitor-row').removeClass('highlight');
+
+	// Find competitors starting in the current minute
+	const currentMinute = Math.floor(currentTime / 60) * 60;
+	const nextMinute = currentMinute + 60;
+
+	$('.competitor-row').each(function () {
+		const startTime = parseInt($(this).attr('data-starttime'));
+		if (startTime >= currentMinute && startTime < nextMinute) {
+			$(this).addClass('highlight');
+		}
+	});
+}
+
+// Initialize clock and update every second
+function initClock() {
+	updateClock();
+	// Set clock visible
+	$('#clock').show();
+	setInterval(updateClock, 1000);
+}
+
+function getCurrentTimeInSeconds() {
+	const now = new Date();
+	const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+	const secondsSinceMidnight = (now.getTime() - midnight.getTime()) / 1000;
+	return secondsSinceMidnight;
+}
+
+// Scroll to current time
+function findNearestHrTime(currentTimeInSeconds) {
+	const hrs = $('hr[data-time]');
+	let nearestTime = parseInt(hrs.first().attr('data-time'));
+	hrs.each(function () {
+		const time = parseInt($(this).attr('data-time'));
+		if (Math.abs(time - currentTimeInSeconds) < Math.abs(nearestTime - currentTimeInSeconds)) {
+			nearestTime = time;
+		}
+	});
+	return nearestTime;
+}
 
 $(document).ready(function () {
 	// Connect to Socket.IO server
@@ -456,25 +526,6 @@ $(document).ready(function () {
 		// Process queued messages after competitors are loaded
 		processMessageQueue();
 
-		// Scroll to current time
-		function findNearestHrTime(currentTimeInSeconds) {
-			const hrs = $('hr[data-time]');
-			let nearestTime = parseInt(hrs.first().attr('data-time'));
-			hrs.each(function () {
-				const time = parseInt($(this).attr('data-time'));
-				if (Math.abs(time - currentTimeInSeconds) < Math.abs(nearestTime - currentTimeInSeconds)) {
-					nearestTime = time;
-				}
-			});
-			return nearestTime;
-		}
-
-		function getCurrentTimeInSeconds() {
-			const now = new Date();
-			const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-			const secondsSinceMidnight = (now.getTime() - midnight.getTime()) / 1000;
-			return secondsSinceMidnight;
-		}
 
 		let currentTime = getCurrentTimeInSeconds();
 		//console.log(formatTime(currentTime, timeRes));
@@ -483,6 +534,11 @@ $(document).ready(function () {
 		let nearestHR = $(`hr[data-time="${nearestHRtime}"]`);
 		//console.log(nearestHR);
 		nearestHR[0].scrollIntoView();
+
+		// Initialize clock after rendering
+		if (prestartmin > 0) {
+			initClock();
+		}
 
 	}
 
@@ -624,4 +680,18 @@ $(document).ready(function () {
 		}
 	});
 
+});
+
+$(document).on('click', '#scroll-to-top', function () {
+	$('html, body').animate({ scrollTop: 0 }, 'fast');
+});
+
+$(document).on('click', '#scroll-to-current', function () {
+	let currentTime = getCurrentTimeInSeconds();
+	//console.log(formatTime(currentTime, timeRes));
+	let nearestHRtime = findNearestHrTime(currentTime);
+	//console.log(nearestHRtime);
+	let nearestHR = $(`hr[data-time="${nearestHRtime}"]`);
+	//console.log(nearestHR);
+	nearestHR[0].scrollIntoView();
 });

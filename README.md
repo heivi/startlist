@@ -14,7 +14,9 @@ If using Aaltonen online, it is also possible to select a specific start by addi
 
 A password can also be set for the page, so that only the pages with the same password will show the modifications/updates. The password can be set by query parameter "pw", for example "?pw=password". If no password is set, then it is ignored, and all incoming changes are shown.
 
-Full url example with parameters: https://virekunnas.fi/startlist/?eventid=2024_aland&raceno=1&classes=H21,D21&pw=organizersecret&navisportid=55d59689-d0ef-4b8c-afe9-71a92d73e363
+You can set a pre start call time with the parameter "?prestartmin=5" to show a clock with the prestart call time and highlight the starters with that starttime.
+
+Full url example with parameters: https://virekunnas.fi/startlist/?eventid=2024_aland&raceno=1&classes=H21,D21&pw=organizersecret&navisportid=55d59689-d0ef-4b8c-afe9-71a92d73e363&prestartmin=5
 
 Currently running at https://virekunnas.fi/startlist/.
 
