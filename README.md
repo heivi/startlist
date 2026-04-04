@@ -1,4 +1,4 @@
-# Online start list for Aaltonen Online races
+# Online start list for Aaltonen Online / Navisport races
 
 This web app loads competitor information from Aaltonen online result service (https://online4.tulospalvelu.fi) (or Navisport (https://navisport.com/events)) and shows a start list by minute. It allows to mark competitors, that have started, and to make changes to their emit/SI number and start time. Those changes are synchronized between clients with the same page open, so result service can update the changes to their system.
 
@@ -14,7 +14,7 @@ If using Aaltonen online, it is also possible to select a specific start by addi
 
 A password can also be set for the page, so that only the pages with the same password will show the modifications/updates. The password can be set by query parameter "pw", for example "?pw=password". If no password is set, then it is ignored, and all incoming changes are shown.
 
-You can set a pre start call time with the parameter "?prestartmin=5" to show a clock with the prestart call time and highlight the starters with that starttime.
+You can set a pre-start call time with the parameter "?prestartmin=5" to show a clock with the pre-start call time and highlight the starters with that starttime.
 
 Full url example with parameters: https://virekunnas.fi/startlist/?eventid=2024_aland&raceno=1&classes=H21,D21&pw=organizersecret&navisportid=55d59689-d0ef-4b8c-afe9-71a92d73e363&prestartmin=5
 

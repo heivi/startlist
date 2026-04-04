@@ -1,0 +1,126 @@
+/* Create print-styles.css */
+@media print {
+    /* Hide non-printable elements */
+    .clock-container,
+    .scroll-button,
+    #message-list,
+    hr {
+        display: none !important;
+    }
+    
+    /* Page setup */
+    body {
+        font-size: 12pt;
+        margin: 0;
+        padding: 20px;
+        width: 100%;
+        height: 100%;
+    }
+    
+    .container {
+        margin-top: 0;
+        padding: 0;
+        width: 100%;
+        max-width: none;
+        font-size: 12pt;
+    }
+    
+    h1 {
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 24pt;
+    }
+    
+    /* Competitor row layout for printing */
+    .competitor-row {
+        display: grid;
+        grid-template-columns: 
+            1fr  /* Start time */
+            1fr  /* Class */
+            1fr  /* Bib */
+            1fr  /* Chip */
+            3fr  /* Name */
+            2fr; /* Club */
+        border: 0px solid #000;
+        margin-bottom: 5px;
+        padding: 2px;
+        width: 100%;
+        align-items: center;
+        gap: 2px;
+        page-break-inside: avoid;
+    }
+    
+    .timeheader {
+        font-weight: bold;
+        font-size: 14pt;
+        margin: 15px 0 10px 0;
+        text-align: left;
+        page-break-after: avoid;
+    }
+    
+    .no-starters {
+        display: block;
+        margin-bottom: 5px;
+        width: 100%;
+        align-items: center;
+        font-size: 12pt;
+        text-align: center;
+        font-weight: bold;
+        padding: 5px;
+        page-break-inside: avoid;
+    }
+    
+    .competitor-row > div {
+        min-width: 0;
+        padding: 1px;
+        text-align: center;
+        box-sizing: border-box;
+    }
+    
+    .namecol {
+        text-align: left;
+        padding-left: 10px;
+    }
+    
+    .clubcol {
+        text-align: left;
+        padding-left: 10px;
+    }
+    
+    /* Add spacing between minutes */
+    hr {
+        height: 10px;
+        margin: 10px 0;
+    }
+    
+    /* Page breaks 
+    .timeheader {
+        page-break-before: always;
+    }
+		*/
+    
+    /* Ensure page breaks work properly */
+    .competitor-row,
+    .no-starters {
+        page-break-inside: avoid;
+    }
+    
+    /* Print header with event name */
+    @page {
+        size: A4;
+        margin: 2cm;
+    }
+    
+    /* Additional spacing for printable version */
+    .container {
+        display: block;
+    }
+    
+    .competitor-row {
+        font-size: 10pt;
+    }
+    
+    .timeheader {
+        font-size: 12pt;
+    }
+}

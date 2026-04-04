@@ -14,6 +14,12 @@ if (!ol_eventid) {
 	navisportonly = true;
 }
 
+let eventname = "";
+
+const print = urlParams.get('print') === "true";
+
+let orderedClasses = [];
+
 const prestartmin = parseInt(urlParams.get('prestartmin')) || 0;
 const testtimeoffset = parseInt(urlParams.get('timeoffset')) || 0;
 
@@ -47,11 +53,48 @@ function formatTime(time, timePrecision, hoursAlways = false) {
 	}
 }
 
+/*
 // Function to order results by time and points
-function orderStarttimes(results) {
+function orderStarttimes(results, byclass = false) {
+	console.log(results);
 	return results.sort((a, b) => {
 		if (a.starttime === b.starttime) {
-			return a.classid - b.classid;
+			if (byclass) {
+				return a.class.localeCompare(b.class);
+			} else {
+				return a.classid - b.classid;
+			}
+		}
+		return a.starttime - b.starttime;
+	});
+}
+*/
+
+// Function to order results by time and points
+function orderStarttimes(results, byclass = false) {
+	return results.sort((a, b) => {
+		if (a.starttime === b.starttime) {
+			if (byclass && orderedClasses.length > 0) {
+				// Use the predefined order from orderedClasses array
+				const aIndex = orderedClasses.indexOf(a.class);
+				const bIndex = orderedClasses.indexOf(b.class);
+
+				// If either class is not found in orderedClasses, put it at the end
+				if (aIndex === -1 && bIndex === -1) {
+					return 0;
+				}
+				if (aIndex === -1) {
+					return 1;
+				}
+				if (bIndex === -1) {
+					return -1;
+				}
+
+				// Sort by the predefined order
+				return aIndex - bIndex;
+			} else {
+				return a.classid - b.classid;
+			}
 		}
 		return a.starttime - b.starttime;
 	});
@@ -90,6 +133,7 @@ async function loadOnlineResults() {
 		raceno = parseInt(urlParams.get('raceno')) || event.Headers.CurrentRace;
 
 		$("#eventname").text(event.Headers.EventTitle + ", RaceNo " + raceno);
+		eventname = event.Headers.EventTitle + ", RaceNo " + raceno;
 
 		//console.log("Selected starts 1", selectedStarts);
 		//console.log("Selected classes 1", selectedClasses);
@@ -285,6 +329,7 @@ function loadNavisportResults() {
 
 			if (naviret[0]?.result?.data?.name) {
 				$("#eventname").text(naviret[0]?.result?.data?.name + ", RaceNo " + raceno);
+				eventname = naviret[0]?.result?.data?.name + ", RaceNo " + raceno;
 			}
 
 			//console.log(naviret);
@@ -303,6 +348,9 @@ function loadNavisportResults() {
 
 				let results = event.results;
 				let courseClasses = event.courseClasses;
+				//console.log("Course classes", courseClasses);
+				orderedClasses = courseClasses.map((c) => c.name);
+				console.log("Ordered classes", orderedClasses.join(","));
 
 				classNames = courseClasses.reduce((classes, currClass) => {
 					classes[currClass.id] = currClass.name;
@@ -479,7 +527,11 @@ $(document).ready(function () {
 		const competitorsList = $('#competitors-list');
 		competitorsList.empty();
 
-		orderStarttimes(competitors);
+		if (navisportonly) {
+			orderStarttimes(competitors, true);
+		} else {
+			orderStarttimes(competitors);
+		}
 
 		//console.log(competitors);
 
@@ -540,8 +592,104 @@ $(document).ready(function () {
 			initClock();
 		}
 
+		if (print) {
+			// Add print button after competitors are loaded
+    	addPrintButton(competitors);
+		}
+
 	}
 
+	// Add to scripts.js - Add a function to generate printable startlist
+	function generatePrintableStartlist(competitors) {
+		// Create a new window for printing
+		const printWindow = window.open('', '_blank');
+		printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Printable Startlist</title>
+            <link rel="stylesheet" href="styles.css?ver=93">
+            <link rel="stylesheet" href="print-styles.css" media="print">
+        </head>
+        <body>
+            <div class="container">
+                <h1>Startlist - <span id="eventname">${eventname}</span></h1>
+                <div id="competitors-list"></div>
+            </div>
+        </body>
+        </html>
+    `);
+
+		printWindow.document.close();
+
+		// Render competitors in the new window
+		const competitorsList = printWindow.document.getElementById('competitors-list');
+		competitorsList.innerHTML = '';
+
+		if (competitors.length < 1) {
+			competitorsList.innerHTML = "<p>No competitors found for the selected classes or starts.</p>";
+			return;
+		}
+
+		let laststarttime = -1;
+		let lasttime = 0;
+
+		competitors.forEach(competitor => {
+			// Add "No starters" entries for gaps between start times
+			const currenttime = competitor.starttime;
+			if (lasttime > 0 && lasttime < currenttime - 60 * timeRes) {
+				// Add placeholders for each minute gap
+				for (let t = lasttime + 60 * timeRes; t < currenttime; t += 60 * timeRes) {
+					const timeStr = formatTime(t, timeRes, true);
+					const row = `
+                    <div class="timeheader" data-time="${t}">${formatTime(t, timeRes, true)}</div>
+                    <div class="no-starters" data-time="${t}">
+                        <div class="no-starters-text">No starters</div>
+                    </div>
+                `;
+					competitorsList.innerHTML += row;
+				}
+			}
+
+			const row = `
+            <div class="competitor-row" data-id="${competitor.id}" data-bib="${competitor.bib}" data-name="${competitor.name}" data-club="${competitor.club}" data-starttime="${competitor.starttime}" data-emit="${competitor.emit}" data-started="false">
+                <div>${formatTime(competitor.starttime, timeRes, true)}</div>
+                <div>${competitor.class}</div>
+                <div>${competitor.bib}</div>
+                <div>${competitor.emit}</div>
+                <div class="namecol">${competitor.name}</div>
+                <div class="clubcol">${competitor.club}</div>
+            </div>
+        `;
+
+			if (laststarttime != competitor.starttime) {
+				competitorsList.innerHTML += '<div class="timeheader" data-time="' + competitor.starttime + '">' + formatTime(competitor.starttime, timeRes, true) + '</div>';
+			}
+			competitorsList.innerHTML += row;
+
+			laststarttime = competitor.starttime;
+			lasttime = competitor.starttime;
+		});
+
+		// Trigger print
+		printWindow.print();
+	}
+
+	function addPrintButton(competitors) {
+		// Add print button to the header
+		const container = document.querySelector('.container');
+		const printButton = document.createElement('button');
+		printButton.id = 'print-startlist';
+		printButton.textContent = 'Print Startlist';
+		printButton.style.margin = '10px 0';
+		printButton.style.padding = '10px 15px';
+		printButton.style.fontSize = '14px';
+		printButton.onclick = function () {
+			generatePrintableStartlist(competitors);
+		};
+
+		container.insertBefore(printButton, container.firstChild.nextSibling);
+	}
 
 	function updateFromMessage(message) {
 
