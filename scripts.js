@@ -8,7 +8,7 @@ const urlParams = new URLSearchParams(window.location.search);
 let navisportonly = false;
 
 // Online event id kisalle
-const ol_eventid = urlParams.get('eventid');
+let ol_eventid = urlParams.get('eventid');
 
 if (!ol_eventid) {
 	navisportonly = true;
@@ -26,6 +26,10 @@ const testtimeoffset = parseInt(urlParams.get('timeoffset')) || 0;
 const online_domain = "./corsproxy.php?csurl=https://online4.tulospalvelu.fi";
 
 const navisportEventId = urlParams.get('navisportid') || "" /*|| "55d59689-d0ef-4b8c-afe9-71a92d73e363"*/;
+
+if (!ol_eventid && navisportEventId) {
+	ol_eventid = navisportEventId;
+}
 
 const passwd = urlParams.get('pw') || "";
 const SHA512 = new Hashes.SHA512;
@@ -71,13 +75,30 @@ function orderStarttimes(results, byclass = false) {
 */
 
 // Function to order results by time and points
-function orderStarttimes(results, byclass = false) {
+function orderStarttimes(results, byclass = false, kidsfirst = false) {
+	let classorder = orderedClasses.slice();
+	if (kidsfirst && orderedClasses.length > 0) {
+		// Set kids classes (younger than 16 first)
+		const kidsClasses = ['H14', 'D14', 'H12TR', 'D12TR', 'H10RR', 'D10RR', '15-20Avoin', '14 Avoin', 'TR Avoin', 'RR Avoin'];
+		const kids = [];
+		const others = [];
+		
+		classorder.forEach(cls => {
+			if (kidsClasses.includes(cls)) {
+				kids.push(cls);
+			} else {
+				others.push(cls);
+			}
+		});
+		
+		classorder = [...kids, ...others];
+	}
 	return results.sort((a, b) => {
 		if (a.starttime === b.starttime) {
-			if (byclass && orderedClasses.length > 0) {
+			if (byclass && classorder.length > 0) {
 				// Use the predefined order from orderedClasses array
-				const aIndex = orderedClasses.indexOf(a.class);
-				const bIndex = orderedClasses.indexOf(b.class);
+				const aIndex = classorder.indexOf(a.class);
+				const bIndex = classorder.indexOf(b.class);
 
 				// If either class is not found in orderedClasses, put it at the end
 				if (aIndex === -1 && bIndex === -1) {
@@ -514,6 +535,19 @@ $(document).ready(function () {
 		transports: ["websocket"]
 	});
 
+	socket.on("disconnect", (reason, details) => {
+		$("#status-indicator").css("background-color", "red");
+		$("#status-indicator").attr("title", "Disconnected: " + reason);
+		console.log("Socket disconnected", reason, details);
+	});
+
+	socket.on("connect", () => {
+		$("#status-indicator").css("background-color", "green");
+		$("#status-indicator").attr("title", "Connected");
+		console.log("Socket connected");
+	});
+
+
 	// Queue to store incoming messages before competitors are loaded
 	const messageQueue = [];
 
@@ -528,7 +562,7 @@ $(document).ready(function () {
 		competitorsList.empty();
 
 		if (navisportonly) {
-			orderStarttimes(competitors, true);
+			orderStarttimes(competitors, true, true);
 		} else {
 			orderStarttimes(competitors);
 		}

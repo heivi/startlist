@@ -145,3 +145,10 @@ div:has(> input.updated) {
 .clocktime {
     font-weight: bold;
 }
+
+.status-indicator {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background-color: red; /* Default to disconnected */
+}
